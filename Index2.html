@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tarot Oracle Pro - Fixed</title>
+    <style>
+        :root {
+            --gold: #c5a059;
+            --dark: #0f0f12;
+            --card-w: 75px;
+            --card-h: 125px;
+            --glow: rgba(197, 160, 89, 0.4);
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--dark);
+            color: #eee;
+            font-family: 'Georgia', serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        header {
+            text-align: center;
+            padding: 20px 10px;
+            z-index: 10;
+        }
+
+        h1 { margin: 0; font-size: 1.4rem; color: var(--gold); letter-spacing: 4px; text-transform: uppercase; text-shadow: 0 0 10px var(--glow); }
+        #status { font-size: 0.85rem; color: #777; margin-top: 8px; font-style: italic; }
+
+        /* DECK AREA - Berjajar Rapi & Center */
+        #deck-container {
+            width: 95%;
+            max-width: 600px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            padding: 15px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(197, 160, 89, 0.1);
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            width: var(--card-w);
+            height: var(--card-h);
+            perspective: 1000px;
+            cursor: pointer;
+            position: relative;
+            transition: transform 0.4s ease;
+        }
+
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+            transform-style: preserve-3d;
+        }
+
+        .card.flipped .card-inner { transform: rotateY(180deg); }
+
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 8px;
+            border: 1.5px solid var(--gold);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+
+        .card-back {
+            background: #1a1a1f linear-gradient(45deg, #111 25%, transparent 25%, transparent 50%, #111 50%, #111 75%, transparent 75%, transparent);
+            background-size: 20px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card-back::after {
+            content: "✦";
+            color: var(--gold);
+            font-size: 2rem;
+            opacity: 0.6;
+        }
+
+        .card-front {
+            background: #222;
+            transform: rotateY(180deg);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .card-front img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Jika Gambar Gagal: Tampilan Elegan tetap terjaga */
+        .img-error {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            height: 100%;
+            padding: 5px;
+            font-size: 0.7rem;
+            color: var(--gold);
+            background: #111;
+            border: 1px inset var(--gold);
+        }
+
+        .card-label {
+            position: absolute;
+            bottom: 0; width: 100%;
+            background: rgba(0,0,0,0.85);
+            font-size: 0.55rem;
+            text-align: center;
+            padding: 4px 0;
+            color: var(--gold);
+            border-top: 1px solid var(--gold);
+        }
+
+        /* LAYOUT AREA - SPREAD CONFIG */
+        #layout-outer {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            padding-bottom: 50px;
+        }
+
+        #layout-grid {
+            display: grid;
+            grid-template-columns: repeat(4, var(--card-w));
+            grid-template-rows: repeat(3, var(--card-h));
+            gap: 20px;
+            position: relative;
+        }
+
+        .slot {
+            width: var(--card-w);
+            height: var(--card-h);
+            border: 1px solid rgba(197, 160, 89, 0.1);
+            border-radius: 8px;
+            position: relative;
+        }
+
+        /* Posisi Slot Sesuai Instruksi */
+        .slot-1, .slot-2 { grid-column: 2; grid-row: 2; border: none; } 
+        .slot-3 { grid-column: 2; grid-row: 1; }
+        .slot-4 { grid-column: 2; grid-row: 3; }
+        .slot-5 { grid-column: 3; grid-row: 2; }
+        .slot-7 { grid-column: 4; grid-row: 2; }
+        .slot-8 { grid-column: 4; grid-row: 1; }
+        .slot-6 { grid-column: 4; grid-row: 3; }
+
+        /* Animasi Pindah */
+        .is-moving {
+            position: fixed !important;
+            z-index: 9999;
+            pointer-events: none;
+        }
+
+        .final-1 { transform: rotate(90deg) !important; z-index: 10; }
+        .final-2 { transform: rotate(0deg) !important; z-index: 11; }
+
+        .btn-reset {
+            background: none;
+            border: 1.5px solid var(--gold);
+            color: var(--gold);
+            padding: 12px 30px;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            letter-spacing: 2px;
+            margin: 20px 0;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .btn-reset:active { background: var(--gold); color: black; }
+
+        /* Penyesuaian HP Kecil */
+        @media (max-width: 380px) {
+            :root { --card-w: 65px; --card-h: 110px; }
+            #layout-grid { gap: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Tarot Oracle</h1>
+        <div id="status">Mengumpulkan Energi Kartu...</div>
+    </header>
+
+    <div id="deck-container"></div>
+
+    <div id="layout-outer">
+        <div id="layout-grid">
+            <div class="slot slot-1"></div><div class="slot slot-2"></div>
+            <div class="slot slot-3"></div><div class="slot slot-4"></div>
+            <div class="slot slot-5"></div><div class="slot slot-6"></div>
+            <div class="slot slot-7"></div><div class="slot slot-8"></div>
+        </div>
+    </div>
+
+    <button class="btn-reset" onclick="location.reload()">SHUFFLE ULANG</button>
+
+    <script>
+        const deckContainer = document.getElementById('deck-container');
+        const status = document.getElementById('status');
+        let selectedCount = 0;
+        const totalCards = 8;
+
+        // Sumber Gambar Primer & Sekunder (Jika satu mati, yang lain backup)
+        const IMG_BASE_1 = "https://raw.githubusercontent.com/ekelen/tarot-api/master/static/cards/";
+        const IMG_BASE_2 = "https://www.sacred-texts.com/tarot/pkt/img/";
+
+        function buildCardData() {
+            let cards = [];
+            const majors = ["The Fool","The Magician","The High Priestess","The Empress","The Emperor","The Hierophant","The Lovers","The Chariot","Strength","The Hermit","Wheel of Fortune","Justice","The Hanged Man","Death","Temperance","The Devil","The Tower","The Star","The Moon","The Sun","Judgement","The World"];
+            const suits = [{id:'wa', name:'Wands'}, {id:'cu', name:'Cups'}, {id:'sw', name:'Swords'}, {id:'pe', name:'Pentacles'}];
+
+            // Major Arcana
+            majors.forEach((name, i) => {
+                let filename = "m" + i.toString().padStart(2, '0') + ".jpg"; // m01.jpg format
+                cards.push({ name, img: IMG_BASE_1 + filename, altImg: IMG_BASE_2 + "ar" + i.toString().padStart(2, '0') + ".jpg" });
+            });
+
+            // Minor Arcana
+            suits.forEach(suit => {
+                for(let v=1; v<=14; v++) {
+                    let filename = suit.id + v.toString().padStart(2, '0') + ".jpg"; // wa01.jpg
+                    cards.push({ name: `${suit.name} ${v}`, img: IMG_BASE_1 + filename, altImg: IMG_BASE_2 + suit.id + v.toString().padStart(2, '0') + ".jpg" });
+                }
+            });
+            return cards;
+        }
+
+        function init() {
+            const allCards = buildCardData().sort(() => Math.random() - 0.5);
+            deckContainer.innerHTML = '';
+            status.innerText = "Pilih 8 kartu dari deck di atas";
+
+            allCards.forEach((data, i) => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div class="card-inner">
+                        <div class="card-back"></div>
+                        <div class="card-front">
+                            <img src="${data.img}" 
+                                 onerror="handleImgError(this, '${data.altImg}', '${data.name}')" 
+                                 alt="${data.name}">
+                            <div class="card-label">${data.name}</div>
+                        </div>
+                    </div>
+                `;
+                card.onclick = () => pickCard(card);
+                deckContainer.appendChild(card);
+            });
+        }
+
+        // FUNGSI KRUSIAL: Menangani gambar mati secara cerdas
+        function handleImgError(imgTag, fallbackUrl, cardName) {
+            if (!imgTag.dataset.triedFallback) {
+                imgTag.dataset.triedFallback = "true";
+                imgTag.src = fallbackUrl; // Coba server cadangan
+            } else {
+                // Jika server cadangan juga mati, ganti dengan desain teks elegan
+                const parent = imgTag.parentElement;
+                parent.innerHTML = `<div class="img-error">${cardName}</div><div class="card-label">${cardName}</div>`;
+            }
+        }
+
+        function pickCard(card) {
+            if (selectedCount >= totalCards || card.classList.contains('picked')) return;
+
+            selectedCount++;
+            card.classList.add('picked', 'flipped');
+            
+            // Random Upright / Reversed
+            const isReversed = Math.random() > 0.5;
+            if(isReversed) {
+                card.querySelector('.card-inner').style.transform = "rotateY(180deg) rotateZ(180deg)";
+                card.querySelector('.card-label').innerText += " (Rev)";
+            }
+
+            // Animasi Perpindahan ke Layout
+            const slot = document.querySelector(`.slot-${selectedCount}`);
+            const cardRect = card.getBoundingClientRect();
+            const slotRect = slot.getBoundingClientRect();
+
+            card.classList.add('is-moving');
+            card.style.left = cardRect.left + 'px';
+            card.style.top = cardRect.top + 'px';
+
+            // Trigger perpindahan posisi
+            setTimeout(() => {
+                card.style.left = slotRect.left + 'px';
+                card.style.top = slotRect.top + 'px';
+            }, 10);
+
+            setTimeout(() => {
+                card.classList.remove('is-moving');
+                card.style.position = "absolute";
+                card.style.left = "0";
+                card.style.top = "0";
+                
+                // Rotasi khusus posisi 1 & 2
+                if(selectedCount === 1) card.classList.add('final-1');
+                if(selectedCount === 2) card.classList.add('final-2');
+
+                slot.appendChild(card);
+            }, 600);
+
+            status.innerText = `Terpilih ${selectedCount} / ${totalCards}`;
+
+            if(selectedCount === totalCards) {
+                status.innerText = "8 Kartu Telah Terpilih. Semoga Beruntung.";
+                document.querySelectorAll('.card:not(.picked)').forEach(c => c.style.opacity = '0');
+            }
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
