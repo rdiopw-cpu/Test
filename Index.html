@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tarot Mystic Oracle</title>
+    <style>
+        :root {
+            --gold: #d4af37;
+            --purple: #2e1a47;
+            --bg: #050508;
+            --card-w: 48px; /* Ukuran deck lebih kecil */
+            --card-h: 80px;
+            --final-w: 70px; /* Ukuran layout tetap proporsional */
+            --final-h: 115px;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        body {
+            margin: 0; padding: 0;
+            background: var(--bg);
+            color: white;
+            font-family: 'Segoe UI', serif;
+            display: flex; flex-direction: column;
+            min-height: 100vh; overflow-x: hidden;
+        }
+
+        header { text-align: center; padding: 15px; }
+        h1 { margin: 0; font-size: 1.2rem; color: var(--gold); letter-spacing: 3px; text-transform: uppercase; }
+        #status { font-size: 0.8rem; color: #888; margin-top: 5px; }
+
+        /* DECK AREA: 5 Baris Rapi ke Samping */
+        #deck-scroll {
+            width: 100%;
+            overflow-x: auto;
+            padding: 10px 0;
+            scrollbar-width: none;
+        }
+        #deck-scroll::-webkit-scrollbar { display: none; }
+
+        #deck-container {
+            display: grid;
+            grid-template-rows: repeat(5, var(--card-h));
+            grid-auto-flow: column;
+            gap: 10px;
+            padding: 0 20px;
+            width: max-content;
+        }
+
+        .card {
+            width: var(--card-w);
+            height: var(--card-h);
+            perspective: 1000px;
+            position: relative;
+        }
+
+        .card-inner {
+            position: relative;
+            width: 100%; height: 100%;
+            transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+            transform-style: preserve-3d;
+        }
+
+        .card.flipped .card-inner { transform: rotateY(180deg); }
+
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%; height: 100%;
+            backface-visibility: hidden;
+            border-radius: 5px;
+            border: 1px solid var(--gold);
+        }
+
+        /* Referensi gambar belakang kartu (Celestial Style) */
+        .card-back {
+            background: #0f0c29;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .card-back::after {
+            content: "✨";
+            color: var(--gold);
+            font-size: 1rem;
+            filter: drop-shadow(0 0 5px var(--gold));
+        }
+
+        .card-front {
+            background: #111;
+            transform: rotateY(180deg);
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+
+        .card-front img {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* Tampilan saat gambar gagal dimuat */
+        .img-fallback {
+            position: absolute; top:0; left:0; width:100%; height:100%;
+            display: flex; align-items: center; justify-content: center;
+            background: #1a1a2e; color: var(--gold); font-size: 0.5rem;
+            text-align: center; padding: 4px; z-index: -1;
+        }
+
+        .card-label {
+            position: absolute; bottom: 0; width: 100%;
+            background: rgba(0,0,0,0.85);
+            font-size: 0.45rem; text-align: center;
+            padding: 3px 0; color: #fff;
+            border-top: 1px solid rgba(212, 175, 55, 0.3);
+        }
+
+        /* LAYOUT AREA: Celtic Style */
+        #layout-area {
+            width: 100%;
+            padding: 20px 10px;
+            margin-bottom: 50px;
+        }
+
+        #layout-grid {
+            display: grid;
+            grid-template-columns: repeat(4, var(--final-w));
+            grid-template-rows: repeat(3, var(--final-h));
+            gap: 15px;
+            position: relative;
+            margin: 0 auto; /* Supaya tetap rapi di kiri/sesuai flow browser */
+            width: max-content;
+        }
+
+        .slot {
+            width: var(--final-w); height: var(--final-h);
+            border: 1px dashed rgba(212, 175, 55, 0.15);
+            border-radius: 6px;
+        }
+
+        /* Mapping Slot */
+        .slot-1, .slot-2 { grid-column: 2; grid-row: 2; border: none; }
+        .slot-3 { grid-column: 2; grid-row: 1; }
+        .slot-4 { grid-column: 2; grid-row: 3; }
+        .slot-5 { grid-column: 3; grid-row: 2; }
+        .slot-7 { grid-column: 4; grid-row: 2; }
+        .slot-8 { grid-column: 4; grid-row: 1; }
+        .slot-6 { grid-column: 4; grid-row: 3; }
+
+        .is-animating {
+            position: fixed !important;
+            z-index: 9999;
+            pointer-events: none;
+            width: var(--final-w) !important;
+            height: var(--final-h) !important;
+        }
+
+        .rotate-90 { transform: rotate(90deg) !important; z-index: 10; }
+
+        .footer { text-align: center; padding: 20px; }
+        button {
+            background: none; border: 1px solid var(--gold);
+            color: var(--gold); padding: 10px 20px; border-radius: 4px;
+            cursor: pointer; text-transform: uppercase; font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Tarot Mystic</h1>
+        <div id="status">Pilih 8 Kartu</div>
+    </header>
+
+    <div id="deck-scroll">
+        <div id="deck-container"></div>
+    </div>
+
+    <div id="layout-area">
+        <div id="layout-grid">
+            <div class="slot slot-1"></div><div class="slot slot-2"></div>
+            <div class="slot slot-3"></div><div class="slot slot-4"></div>
+            <div class="slot slot-5"></div><div class="slot slot-6"></div>
+            <div class="slot slot-7"></div><div class="slot slot-8"></div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <button onclick="location.reload()">Reset & Shuffle</button>
+    </div>
+
+    <script>
+        const deckContainer = document.getElementById('deck-container');
+        const statusText = document.getElementById('status');
+        let count = 0;
+
+        // API Aset: Menggunakan GitHub Pages yang stabil dengan nama kartu lengkap
+        const IMG_URL = "https://ekelen.github.io/tarot-api/static/cards/";
+
+        const major = ["The Fool", "The Magician", "The High Priestess", "The Empress", "The Emperor", "The Hierophant", "The Lovers", "The Chariot", "Strength", "The Hermit", "Wheel of Fortune", "Justice", "The Hanged Man", "Death", "Temperance", "The Devil", "The Tower", "The Star", "The Moon", "The Sun", "Judgement", "The World"];
+        const values = ["Ace", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Page", "Knight", "Queen", "King"];
+        const suits = ["Wands", "Cups", "Swords", "Pentacles"];
+
+        function init() {
+            let deck = [];
+            
+            // Major
+            major.forEach((name, i) => {
+                deck.push({ name, file: `m${i.toString().padStart(2, '0')}.jpg` });
+            });
+
+            // Minor
+            suits.forEach(suit => {
+                const prefix = suit.toLowerCase().substring(0, 2);
+                values.forEach((val, i) => {
+                    deck.push({ 
+                        name: `${val} of ${suit}`, 
+                        file: `${prefix}${(i+1).toString().padStart(2, '0')}.jpg` 
+                    });
+                });
+            });
+
+            deck.sort(() => Math.random() - 0.5).forEach(card => {
+                const el = document.createElement('div');
+                el.className = 'card';
+                el.innerHTML = `
+                    <div class="card-inner">
+                        <div class="card-back"></div>
+                        <div class="card-front">
+                            <div class="img-fallback">${card.name}</div>
+                            <img src="${IMG_URL}${card.file}" loading="lazy" onerror="this.style.opacity='0'">
+                            <div class="card-label">${card.name}</div>
+                        </div>
+                    </div>
+                `;
+                el.onclick = () => pick(el);
+                deckContainer.appendChild(el);
+            });
+        }
+
+        function pick(el) {
+            if (count >= 8 || el.classList.contains('picked')) return;
+
+            count++;
+            el.classList.add('picked', 'flipped');
+            
+            const isRev = Math.random() > 0.5;
+            if (isRev) {
+                el.querySelector('.card-inner').style.transform = "rotateY(180deg) rotateZ(180deg)";
+                el.querySelector('.card-label').innerText += " (Rev)";
+            }
+
+            const slot = document.querySelector(`.slot-${count}`);
+            const start = el.getBoundingClientRect();
+            const end = slot.getBoundingClientRect();
+
+            el.classList.add('is-animating');
+            el.style.left = start.left + 'px';
+            el.style.top = start.top + 'px';
+
+            setTimeout(() => {
+                el.style.left = end.left + 'px';
+                el.style.top = end.top + 'px';
+            }, 50);
+
+            setTimeout(() => {
+                el.classList.remove('is-animating');
+                el.style.position = 'absolute';
+                el.style.left = '0'; el.style.top = '0';
+                if(count === 1) el.classList.add('rotate-90');
+                slot.appendChild(el);
+            }, 650);
+
+            statusText.innerText = `Terpilih ${count} / 8`;
+            if(count === 8) {
+                document.querySelectorAll('.card:not(.picked)').forEach(c => c.style.opacity = '0');
+            }
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
