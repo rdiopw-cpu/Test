@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tarot Reading</title>
+
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: sans-serif;
+}
+
+body {
+  background: #0e0e11;
+  color: white;
+  overflow-x: hidden;
+}
+
+h1 {
+  text-align: center;
+  font-size: 18px;
+  margin: 10px 0;
+  opacity: 0.7;
+}
+
+/* ===== DECK ===== */
+.deck {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 6px;
+  padding: 10px;
+  justify-items: center;
+}
+
+.card {
+  width: 45px;
+  height: 70px;
+  perspective: 600px;
+  cursor: pointer;
+}
+
+.inner {
+  width: 100%;
+  height: 100%;
+  transition: transform 0.6s;
+  transform-style: preserve-3d;
+  position: relative;
+}
+
+.card.flipped .inner {
+  transform: rotateY(180deg);
+}
+
+.front, .back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 6px;
+  backface-visibility: hidden;
+}
+
+.back {
+  background: url('https://i.imgur.com/7s5Q9hM.jpeg') center/cover;
+}
+
+.front {
+  transform: rotateY(180deg);
+  background-size: cover;
+  background-position: center;
+}
+
+/* ===== READING AREA ===== */
+.reading {
+  position: relative;
+  height: 400px;
+  margin-top: 20px;
+}
+
+.card-large {
+  position: absolute;
+  width: 80px;
+  height: 120px;
+  transition: all 0.7s ease;
+  text-align: center;
+}
+
+.card-large img {
+  width: 100%;
+  border-radius: 10px;
+}
+
+.card-name {
+  font-size: 10px;
+  margin-top: 4px;
+  opacity: 0.7;
+}
+
+/* ROTATIONS */
+.reversed img {
+  transform: rotate(180deg);
+}
+
+.rotate90 img {
+  transform: rotate(90deg);
+}
+
+/* ===== POSITIONS ===== */
+.pos1 { left: 35%; top: 45%; }
+.pos2 { left: 50%; top: 45%; }
+.pos3 { left: 42%; top: 20%; }
+.pos4 { left: 42%; top: 70%; }
+.pos5 { left: 70%; top: 45%; }
+.pos7 { left: 85%; top: 45%; }
+.pos6 { left: 85%; top: 70%; }
+.pos8 { left: 85%; top: 20%; }
+
+/* ===== BUTTON ===== */
+.reset {
+  display: block;
+  margin: 15px auto;
+  padding: 10px 20px;
+  border: none;
+  background: #222;
+  color: white;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+/* SHUFFLE ANIMATION */
+@keyframes shuffle {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+  100% { transform: translateY(0); }
+}
+
+.shuffle .card {
+  animation: shuffle 0.5s infinite;
+}
+
+</style>
+</head>
+
+<body>
+
+<h1>Tap 8 Cards</h1>
+
+<div id="deck" class="deck shuffle"></div>
+
+<div id="reading" class="reading"></div>
+
+<button class="reset" onclick="resetReading()">Reset / Shuffle</button>
+
+<audio id="flipSound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_115b9bce63.mp3"></audio>
+
+<script>
+
+// ===== TAROT DATA =====
+const major = [
+"The Fool","The Magician","The High Priestess","The Empress","The Emperor",
+"The Hierophant","The Lovers","The Chariot","Strength","The Hermit",
+"Wheel of Fortune","Justice","The Hanged Man","Death","Temperance",
+"The Devil","The Tower","The Star","The Moon","The Sun","Judgement","The World"
+];
+
+const suits = ["Wands","Cups","Swords","Pentacles"];
+const ranks = ["Ace","2","3","4","5","6","7","8","9","10","Page","Knight","Queen","King"];
+
+let tarot = [];
+
+// generate deck
+major.forEach(name => {
+  tarot.push(name);
+});
+
+suits.forEach(suit => {
+  ranks.forEach(rank => {
+    tarot.push(`${rank} of ${suit}`);
+  });
+});
+
+// ===== STATE =====
+let selected = [];
+const deckEl = document.getElementById("deck");
+const readingEl = document.getElementById("reading");
+
+// ===== LOAD DECK =====
+function loadDeck() {
+  deckEl.innerHTML = "";
+  tarot.forEach((card, index) => {
+    const el = document.createElement("div");
+    el.className = "card";
+
+    el.innerHTML = `
+      <div class="inner">
+        <div class="back"></div>
+        <div class="front" id="front-${index}"></div>
+      </div>
+    `;
+
+    el.onclick = () => pickCard(index, el);
+    deckEl.appendChild(el);
+  });
+
+  setTimeout(()=> deckEl.classList.remove("shuffle"),1500);
+}
+
+// ===== PICK CARD =====
+function pickCard(index, el) {
+  if (selected.length >= 8) return;
+  if (selected.includes(index)) return;
+
+  const sound = document.getElementById("flipSound");
+  sound.currentTime = 0;
+  sound.play();
+
+  el.classList.add("flipped");
+
+  const img = `https://source.unsplash.com/200x300/?tarot,${encodeURIComponent(tarot[index])}`;
+  document.getElementById(`front-${index}`).style.backgroundImage = `url(${img})`;
+
+  const reversed = Math.random() > 0.5;
+
+  selected.push({index, reversed});
+
+  setTimeout(() => moveToLayout(selected.length - 1), 600);
+}
+
+// ===== MOVE TO LAYOUT =====
+function moveToLayout(posIndex) {
+
+  const data = selected[posIndex];
+  const name = tarot[data.index];
+
+  const div = document.createElement("div");
+  div.className = "card-large pos" + (posIndex+1);
+
+  if (data.reversed) div.classList.add("reversed");
+  if (posIndex === 1) div.classList.add("rotate90");
+
+  const img = `https://source.unsplash.com/200x300/?tarot,${encodeURIComponent(name)}`;
+
+  div.innerHTML = `
+    <img src="${img}">
+    <div class="card-name">${name}</div>
+  `;
+
+  readingEl.appendChild(div);
+}
+
+// ===== RESET =====
+function resetReading() {
+  selected = [];
+  readingEl.innerHTML = "";
+  deckEl.classList.add("shuffle");
+  loadDeck();
+}
+
+// INIT
+loadDeck();
+
+</script>
+
+</body>
+</html>
