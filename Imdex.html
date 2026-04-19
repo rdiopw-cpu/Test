@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tarot Oracle Pro</title>
+    <style>
+        :root {
+            --gold: #d4af37;
+            --bg: #0a0a0c;
+            /* Ukuran kartu deck lebih kecil sesuai permintaan */
+            --deck-w: 45px;
+            --deck-h: 75px;
+            /* Ukuran kartu layout final sedikit lebih besar agar terbaca */
+            --final-w: 65px;
+            --final-h: 110px;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        body {
+            margin: 0; padding: 0;
+            background: var(--bg);
+            color: white;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            display: flex; flex-direction: column;
+            align-items: center; min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        header { text-align: center; padding: 10px; }
+        h1 { margin: 0; font-size: 1.1rem; color: var(--gold); letter-spacing: 2px; }
+        #status { font-size: 0.75rem; color: #888; margin-top: 4px; }
+
+        /* DECK AREA: 5 Baris Rapi */
+        #deck-scroll {
+            width: 100%;
+            overflow-x: auto;
+            padding: 10px 0;
+            scrollbar-width: none;
+        }
+        #deck-scroll::-webkit-scrollbar { display: none; }
+
+        #deck-container {
+            display: grid;
+            grid-template-rows: repeat(5, var(--deck-h)); /* 5 Baris */
+            grid-auto-flow: column;
+            gap: 8px;
+            padding: 0 20px;
+            width: max-content;
+        }
+
+        .card {
+            width: var(--deck-w);
+            height: var(--deck-h);
+            perspective: 1000px;
+            position: relative;
+            transition: opacity 0.3s;
+        }
+
+        .card-inner {
+            position: relative;
+            width: 100%; height: 100%;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-style: preserve-3d;
+        }
+
+        .card.flipped .card-inner { transform: rotateY(180deg); }
+
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%; height: 100%;
+            backface-visibility: hidden;
+            border-radius: 4px;
+            border: 1px solid var(--gold);
+        }
+
+        .card-back {
+            background: #1a1a1a;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .card-back::after { content: "✧"; color: var(--gold); font-size: 0.8rem; }
+
+        .card-front {
+            background: #111;
+            transform: rotateY(180deg);
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+
+        .card-front img {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* Safe UI: Jika gambar mati, tampilkan icon */
+        .fallback-ui {
+            position: absolute; top:0; left:0; width:100%; height:100%;
+            display: flex; align-items: center; justify-content: center;
+            background: #111; color: var(--gold); font-size: 0.5rem;
+            text-align: center; padding: 2px; z-index: -1;
+        }
+
+        .card-label {
+            position: absolute; bottom: 0; width: 100%;
+            background: rgba(0,0,0,0.85);
+            font-size: 0.45rem; text-align: center;
+            padding: 2px 0; color: #fff;
+        }
+
+        /* LAYOUT AREA: Final Spread (Celtic-style) */
+        #layout-area {
+            width: 100%;
+            display: flex; justify-content: center;
+            margin-top: 15px; padding-bottom: 50px;
+        }
+
+        #layout-grid {
+            display: grid;
+            grid-template-columns: repeat(4, var(--final-w));
+            grid-template-rows: repeat(3, var(--final-h));
+            gap: 12px;
+            position: relative;
+        }
+
+        .slot {
+            width: var(--final-w); height: var(--final-h);
+            border: 1px dashed rgba(212, 175, 55, 0.2);
+            border-radius: 5px;
+        }
+
+        /* Mapping Posisi sesuai permintaan */
+        .slot-1, .slot-2 { grid-column: 2; grid-row: 2; border: none; }
+        .slot-3 { grid-column: 2; grid-row: 1; }
+        .slot-4 { grid-column: 2; grid-row: 3; }
+        .slot-5 { grid-column: 3; grid-row: 2; }
+        .slot-7 { grid-column: 4; grid-row: 2; }
+        .slot-8 { grid-column: 4; grid-row: 1; }
+        .slot-6 { grid-column: 4; grid-row: 3; }
+
+        /* Animasi */
+        .is-animating {
+            position: fixed !important;
+            z-index: 9999 !important;
+            pointer-events: none;
+            width: var(--final-w) !important;
+            height: var(--final-h) !important;
+        }
+
+        .final-rotate-1 { transform: rotate(90deg) !important; }
+        .final-rotate-2 { transform: rotate(0deg) !important; }
+
+        .btn-reset {
+            margin: 20px; padding: 10px 20px;
+            background: none; border: 1px solid var(--gold);
+            color: var(--gold); border-radius: 4px; font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Tarot Oracle</h1>
+        <div id="status">Memuat energi...</div>
+    </header>
+
+    <div id="deck-scroll">
+        <div id="deck-container"></div>
+    </div>
+
+    <div id="layout-area">
+        <div id="layout-grid">
+            <div class="slot slot-1"></div><div class="slot slot-2"></div>
+            <div class="slot slot-3"></div><div class="slot slot-4"></div>
+            <div class="slot slot-5"></div><div class="slot slot-6"></div>
+            <div class="slot slot-7"></div><div class="slot slot-8"></div>
+        </div>
+    </div>
+
+    <button class="btn-reset" onclick="location.reload()">Reset & Shuffle</button>
+
+    <script>
+        const deckContainer = document.getElementById('deck-container');
+        const statusText = document.getElementById('status');
+        let pickCount = 0;
+        const maxPick = 8;
+
+        // Sumber gambar alternatif yang lebih stabil (Wikimedia)
+        const IMG_URL = "https://upload.wikimedia.org/wikipedia/commons/";
+        const majorMapping = [
+            "9/90/RWS_Tarot_00_Fool.jpg", "d/de/RWS_Tarot_01_Magician.jpg", "8/88/RWS_Tarot_02_High_Priestess.jpg",
+            "a/af/RWS_Tarot_03_Empress.jpg", "c/c3/RWS_Tarot_04_Emperor.jpg", "8/8d/RWS_Tarot_05_Hierophant.jpg",
+            "3/3a/RWS_Tarot_06_Lovers.jpg", "9/9b/RWS_Tarot_07_Chariot.jpg", "f/f5/RWS_Tarot_08_Strength.jpg",
+            "4/4d/RWS_Tarot_09_Hermit.jpg", "3/3c/RWS_Tarot_10_Wheel_of_Fortune.jpg", "e/e0/RWS_Tarot_11_Justice.jpg",
+            "2/2b/RWS_Tarot_12_Hanged_Man.jpg", "d/d7/RWS_Tarot_13_Death.jpg", "f/f8/RWS_Tarot_14_Temperance.jpg",
+            "5/55/RWS_Tarot_15_Devil.jpg", "5/53/RWS_Tarot_16_Tower.jpg", "d/db/RWS_Tarot_17_Star.jpg",
+            "7/7f/RWS_Tarot_18_Moon.jpg", "1/17/RWS_Tarot_19_Sun.jpg", "d/dd/RWS_Tarot_20_Judgement.jpg",
+            "f/ff/RWS_Tarot_21_World.jpg"
+        ];
+
+        function init() {
+            let cards = [];
+            // Generate Major Arcana
+            const majorNames = ["Fool","Magician","Priestess","Empress","Emperor","Hierophant","Lovers","Chariot","Strength","Hermit","Wheel","Justice","HangedMan","Death","Temperance","Devil","Tower","Star","Moon","Sun","Judgement","World"];
+            majorNames.forEach((n, i) => {
+                cards.push({ name: n, img: IMG_URL + majorMapping[i] });
+            });
+
+            // Minor Arcana Fallback (Sistem ini memastikan jika link mati, teks tetap ada)
+            const suits = ["Wands", "Cups", "Swords", "Pentacles"];
+            suits.forEach(s => {
+                for(let v=1; v<=14; v++) {
+                    cards.push({ name: `${s} ${v}`, img: "" }); // Minor menggunakan fallback visual agar ringan
+                }
+            });
+
+            cards.sort(() => Math.random() - 0.5).forEach(data => {
+                const c = document.createElement('div');
+                c.className = 'card';
+                c.innerHTML = `
+                    <div class="card-inner">
+                        <div class="card-back"></div>
+                        <div class="card-front">
+                            <div class="fallback-ui">${data.name}</div>
+                            ${data.img ? `<img src="${data.img}" loading="lazy" onerror="this.style.opacity='0'">` : ''}
+                            <div class="card-label">${data.name}</div>
+                        </div>
+                    </div>
+                `;
+                c.onclick = () => pick(c);
+                deckContainer.appendChild(c);
+            });
+            statusText.innerText = "Pilih 8 kartu (Geser ke samping)";
+        }
+
+        function pick(el) {
+            if (pickCount >= maxPick || el.classList.contains('picked')) return;
+
+            pickCount++;
+            el.classList.add('picked', 'flipped');
+            
+            const isRev = Math.random() > 0.5;
+            if(isRev) {
+                el.querySelector('.card-inner').style.transform = "rotateY(180deg) rotateZ(180deg)";
+                el.querySelector('.card-label').innerText += " (Rev)";
+            }
+
+            const slot = document.querySelector(`.slot-${pickCount}`);
+            const start = el.getBoundingClientRect();
+            const end = slot.getBoundingClientRect();
+
+            el.classList.add('is-animating');
+            el.style.left = start.left + 'px';
+            el.style.top = start.top + 'px';
+
+            setTimeout(() => {
+                el.style.left = end.left + 'px';
+                el.style.top = end.top + 'px';
+                el.style.width = 'var(--final-w)';
+                el.style.height = 'var(--final-h)';
+            }, 10);
+
+            setTimeout(() => {
+                el.classList.remove('is-animating');
+                el.style.position = "absolute";
+                el.style.left = "0"; el.style.top = "0";
+                
+                if (pickCount === 1) el.classList.add('final-rotate-1');
+                if (pickCount === 2) el.classList.add('final-rotate-2');
+
+                slot.appendChild(el);
+            }, 600);
+
+            statusText.innerText = `Terpilih ${pickCount} / ${maxPick}`;
+            if(pickCount === maxPick) {
+                document.querySelectorAll('.card:not(.picked)').forEach(c => c.style.opacity = '0');
+                statusText.innerText = "Pembacaan Selesai";
+            }
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
