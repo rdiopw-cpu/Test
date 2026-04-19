@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<body>
+<h2>Downloading tarot images...</h2>
+
+<script>
+const BASE = "https://cdn.jsdelivr.net/gh/ekelen/tarot-api@master/static/cards/";
+
+const major = [
+"the-fool","the-magician","the-high-priestess","the-empress","the-emperor",
+"the-hierophant","the-lovers","the-chariot","strength","the-hermit",
+"wheel-of-fortune","justice","the-hanged-man","death","temperance",
+"the-devil","the-tower","the-star","the-moon","the-sun","judgement","the-world"
+];
+
+const suits = ["wands","cups","swords","pentacles"];
+const ranks = ["ace","2","3","4","5","6","7","8","9","10","page","knight","queen","king"];
+
+let urls = [];
+
+// build list
+major.forEach(c => urls.push(BASE + c + ".jpg"));
+suits.forEach(s=>{
+  ranks.forEach(r=>{
+    urls.push(BASE + r + "_of_" + s + ".jpg");
+  });
+});
+
+// trigger download
+urls.forEach(url=>{
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = url.split("/").pop();
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+});
+
+</script>
+
+</body>
+</html>
